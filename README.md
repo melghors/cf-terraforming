@@ -10,6 +10,8 @@ This tool is ideal if you already have Cloudflare resources defined but want to 
 ## Usage
 
 ```
+Usage with page-rules shell script generating:
+  ./main -e your-account-mail@gmail.com -t your-token -a your-account-id page_rule -z example.com > example.com/page-rules-example.com.tf
 Usage:
   cf-terraforming [command]
 

@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"os"
-
+	"io"
+	"fmt"
 	"text/template"
 
 	cloudflare "github.com/cloudflare/cloudflare-go"
@@ -34,6 +35,7 @@ resource "cloudflare_page_rule" "page_rule_{{.Rule.ID}}" {
 }
 `
 
+
 func init() {
 	rootCmd.AddCommand(pageRuleCmd)
 }
@@ -58,6 +60,16 @@ var pageRuleCmd = &cobra.Command{
 				return
 			}
 
+			if _, err := os.Stat(zone.Name); os.IsNotExist(err) {
+				os.Mkdir(zone.Name, 0755)
+			}
+	
+			sh, err := os.Create(fmt.Sprintf("%s/page-rules-%s.sh", zone.Name, zone.Name))
+	
+			if err != nil {
+				log.Fatal(err)
+			}
+		
 			for _, rule := range pageRules {
 
 				log.WithFields(logrus.Fields{
@@ -70,14 +82,14 @@ var pageRuleCmd = &cobra.Command{
 				if tfstate {
 					// TODO: Implement state dump
 				} else {
-					pageRuleParse(rule, zone)
+					pageRuleParse(rule, zone, sh)
 				}
 			}
 		}
 	},
 }
 
-func pageRuleParse(rule cloudflare.PageRule, zone cloudflare.Zone) {
+func pageRuleParse(rule cloudflare.PageRule, zone cloudflare.Zone, shWriter io.Writer) {
 	tmpl := template.Must(template.New("page_rule").Funcs(templateFuncMap).Parse(pageRuleTemplate))
 	err := tmpl.Execute(os.Stdout,
 		struct {
@@ -87,6 +99,7 @@ func pageRuleParse(rule cloudflare.PageRule, zone cloudflare.Zone) {
 			Rule: rule,
 			Zone: zone,
 		})
+	fmt.Fprintf(shWriter, "terraform import cloudflare_page_rule.page_rule_%s %s/%s\n", rule.ID, zone.ID, rule.ID)
 	if err != nil {
 		log.Error(err)
 	}
