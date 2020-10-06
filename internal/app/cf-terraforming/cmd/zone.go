@@ -4,7 +4,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
+	"fmt"
+	"io"
 	"text/template"
 
 	cloudflare "github.com/cloudflare/cloudflare-go"
@@ -72,6 +73,11 @@ var zoneCmd = &cobra.Command{
 				return
 			}
 
+			sh, err := os.Create(fmt.Sprintf("%s/zone.sh", zone.Name))
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			log.WithFields(logrus.Fields{
 				"ID":   zoneDetails.ID,
 				"Name": zoneDetails.Name,
@@ -82,6 +88,7 @@ var zoneCmd = &cobra.Command{
 				resourcesMap["cloudflare_zone."+strings.ReplaceAll(zoneDetails.Name, ".", "_")] = r
 			} else {
 				zoneParse(zone)
+				writeZoneSh(zone, sh)
 			}
 		}
 	},
@@ -100,6 +107,10 @@ func zoneParse(zone cloudflare.Zone) {
 	if err != nil {
 		log.Error(err)
 	}
+}
+
+func writeZoneSh(zone cloudflare.Zone, shWriter io.Writer) {
+	fmt.Fprintf(shWriter, "terraform import cloudflare_zone.%s %s\n", replace(zone.Name, ".", "_"), zone.ID)
 }
 
 func zoneResourceStateBuild(zone cloudflare.Zone) Resource {

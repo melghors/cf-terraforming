@@ -3,10 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"io"
 	"strconv"
 	"text/template"
 	"time"
-
 	cloudflare "github.com/cloudflare/cloudflare-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -131,6 +131,18 @@ var recordCmd = &cobra.Command{
 				log.Error(err)
 				return
 			}
+
+			if _, err := os.Stat(zone.Name); os.IsNotExist(err) {
+				os.Mkdir(zone.Name, 0755)
+			}
+
+			sh, err := os.Create(fmt.Sprintf("%s/records.sh", zone.Name))
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+
 			for _, r := range recs {
 
 				log.WithFields(logrus.Fields{
@@ -147,6 +159,7 @@ var recordCmd = &cobra.Command{
 					resourcesMap["cloudflare_record."+name] = state
 				} else {
 					recordParse(zone, r)
+					writeRecordSh(zone, r, sh)
 				}
 			}
 		}
@@ -174,6 +187,10 @@ func recordParse(zone cloudflare.Zone, record cloudflare.DNSRecord) {
 
 func recordResourceName(record cloudflare.DNSRecord) string {
 	return normalizeResourceName(record.Type + "_" + record.Name + "_" + record.ID)
+}
+
+func writeRecordSh(zone cloudflare.Zone, record cloudflare.DNSRecord, shWriter io.Writer) {
+	fmt.Fprintf(shWriter, "terraform import cloudflare_record.%s %s/%s\n", recordResourceName(record), zone.ID, record.ID)
 }
 
 func recordResourceStateBuild(zone cloudflare.Zone, record cloudflare.DNSRecord) Resource {

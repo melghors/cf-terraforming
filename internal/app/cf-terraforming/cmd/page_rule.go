@@ -64,7 +64,7 @@ var pageRuleCmd = &cobra.Command{
 				os.Mkdir(zone.Name, 0755)
 			}
 	
-			sh, err := os.Create(fmt.Sprintf("%s/page-rules-%s.sh", zone.Name, zone.Name))
+			sh, err := os.Create(fmt.Sprintf("%s/page-rules.sh", zone.Name))
 	
 			if err != nil {
 				log.Fatal(err)
